@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"runtime"
+	"sync"
 )
 
 /*
@@ -11,10 +13,16 @@ import (
 */
 import "C"
 
-var userList map[int]net.Conn = make(map[int]net.Conn)
+type user struct {
+	list map[int]net.Conn
+	L    sync.RWMutex
+}
+
+var userList user = user{list: make(map[int]net.Conn)}
 
 func main() {
 	C.daemon(1, 0)
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	addrOut, err1 := net.ResolveTCPAddr("tcp", ":8011")
 	checkError(err1)
 	addrIn, err2 := net.ResolveTCPAddr("tcp", ":8088")
@@ -33,7 +41,9 @@ func main() {
 			i++
 			conn, err := listenerOut.AcceptTCP()
 			checkError(err)
-			userList[i] = conn
+			userList.L.Lock()
+			userList.list[i] = conn
+			userList.L.Unlock()
 			go handleRead(conn, chOut)
 		}
 	}()
@@ -79,7 +89,10 @@ func handleWrite(conn *net.TCPConn, ch chan string) {
 		buf := make([]byte, 512)
 		n, err := conn.Read(buf)
 		if err == nil {
-			for _, c := range userList {
+			userList.L.RLock()
+			list := userList.list
+			userList.L.RUnlock()
+			for _, c := range list {
 				c.Write(buf[:n])
 			}
 		}
