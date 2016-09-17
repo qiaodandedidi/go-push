@@ -1,8 +1,9 @@
 package main
 
 import (
+	"conf"
 	"fmt"
-	"log"
+	"librarys/log"
 	"net"
 	"runtime"
 	"sync"
@@ -23,24 +24,22 @@ var userList user = user{list: make(map[int]net.Conn)}
 func main() {
 	C.daemon(1, 0)
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	addrOut, err1 := net.ResolveTCPAddr("tcp", ":8011")
-	checkError(err1)
-	addrIn, err2 := net.ResolveTCPAddr("tcp", ":8088")
-	checkError(err2)
-	listenerOut, errOut := net.ListenTCP("tcp", addrOut)
-	checkError(errOut)
-	listenerIn, errIn := net.ListenTCP("tcp", addrIn)
-	checkError(errIn)
-	fmt.Println("start success")
+	listenerOut, err := Tcp(conf.Conf["outterAddr"])
+	log.FatalChk(err)
+	listenerIn, err := Tcp(conf.Conf["innerAddr"])
+	log.FatalChk(err)
 	chOut := make(chan string)
 	chIn := make(chan string)
-
+	go server.Read(listenerIn)
+	go server.Write(listenerOut)
+	fmt.Println("start success")
+	server.Run(chOut, chIn)
 	go func() {
 		i := 0
 		for {
 			i++
 			conn, err := listenerOut.AcceptTCP()
-			checkError(err)
+			log.FatalChk(err)
 			userList.L.Lock()
 			userList.list[i] = conn
 			userList.L.Unlock()
@@ -61,13 +60,6 @@ func main() {
 		case v := <-chIn:
 			fmt.Println(v)
 		}
-	}
-}
-
-func checkError(err error) {
-	if err != nil {
-		fmt.Println(err)
-		log.Fatal(err)
 	}
 }
 
