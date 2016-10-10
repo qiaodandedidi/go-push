@@ -1,4 +1,4 @@
-package librarys
+package log
 
 import (
 	"conf"
@@ -9,7 +9,12 @@ import (
 var logger *log.Logger
 
 func init() {
-	logFile, err := os.OpenFile(conf.Conf["logPath"], os.O_WRONLY|os.O_APPEND|O_CREATE, 0666)
+	var logPath string
+	logPath, ok := conf.Conf["logPath"].(string)
+	if !ok {
+		return
+	}
+	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 
 	if err != nil {
 		log.Fatalln("open log file failed!")
@@ -24,12 +29,12 @@ func init() {
 
 func Fatal(v ...interface{}) {
 	logger.SetPrefix("[Fatal]")
-	logger.Fatal(v)
+	logger.Println(v...)
 }
 
-func FatalChk(err error) {
+func FatalChk(err error, v ...interface{}) {
 	if err != nil {
-		Fatal(err)
+		Fatal(err, v)
 	}
 }
 

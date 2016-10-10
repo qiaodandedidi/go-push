@@ -1,2 +1,5 @@
 bin/
 *.swp
+log/
+pkg/
+nohup.out
